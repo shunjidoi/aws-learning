@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  aws learning
+
+Parameters:
+  DynamoDbTestName:
+    Type: String
+    Default: 'dynamodb_stream_test'
+    Description: descriptionnnnn
+
+Resources:
+  DynamoDbTest:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoDbTestName
+      AttributeDefinitions:
+        - AttributeName: Token
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: Token
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ExpireAt
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+
+  HogeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dynamo_integrate_func
+      Runtime: python3.7
+      Handler: index.lambda_handler
+      InlineCode: |
+        import json
+        def lambda_handler(event, context):
+            print(json.dumps(event))
+            return
+      Role: !GetAtt LambdaRole.Arn
+      MemorySize: 128
+      Timeout: 30
+      Events:
+        Stream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt DynamoDbTest.StreamArn
+            BatchSize: 100
+            StartingPosition: LATEST
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: lambda-x-dynamodb-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetShardIterator
+                  - dynamodb:GetRecords
+                  - dynamodb:ListStreams
+                  - dynamodb:DescribeStream
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+
+Outputs:
+  DynamoDbName:
+    Description: DynamoDbNameDescriptionnn
+    Value: !Ref DynamoDbTest
+    Export:
+      Name: !Join [ ':', [ !Ref 'AWS::StackName', 'DynamoDbName' ] ]
