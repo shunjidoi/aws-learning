@@ -1,12 +1,16 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
   aws learning
 
+Metadata:
+  AWS::CloudFormation::Stack:
+    StackName: dynamo-stream-retry-test
+
 Parameters:
   DynamoDbTestName:
     Type: String
-    Default: 'dynamodb_stream_test'
+    Default: "dynamodb_stream_test"
     Description: descriptionnnnn
 
 Resources:
@@ -39,8 +43,6 @@ Resources:
         Enabled: true
       StreamSpecification:
         StreamViewType: KEYS_ONLY
-        StreamEnabled: true
-        RetentionPeriodHours: 24
 
   HogeFunction:
     Type: AWS::Serverless::Function
@@ -68,19 +70,19 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - lambda.amazonaws.com
-          Action:
-          - sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
       Path: "/"
       Policies:
         - PolicyName: lambda-x-dynamodb-policy
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -101,4 +103,4 @@ Outputs:
     Description: DynamoDbNameDescriptionnn
     Value: !Ref DynamoDbTest
     Export:
-      Name: !Join [ ':', [ !Ref 'AWS::StackName', 'DynamoDbName' ] ]
+      Name: !Join [":", [!Ref "AWS::StackName", "DynamoDbName"]]
