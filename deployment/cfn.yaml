@@ -17,15 +17,30 @@ Resources:
       AttributeDefinitions:
         - AttributeName: Token
           AttributeType: S
+        - AttributeName: RunPath
+          AttributeType: S
+        - AttributeName: CreatedDate
+          AttributeType: S
       BillingMode: PAY_PER_REQUEST
       KeySchema:
         - AttributeName: Token
           KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: "RunPathCreatedDateIndex"
+          KeySchema:
+            - AttributeName: "RunPath"
+              KeyType: "HASH"
+            - AttributeName: "CreatedDate"
+              KeyType: "RANGE"
+          Projection:
+            ProjectionType: "ALL"
       TimeToLiveSpecification:
         AttributeName: ExpireAt
         Enabled: true
       StreamSpecification:
-        StreamViewType: NEW_AND_OLD_IMAGES
+        StreamViewType: KEYS_ONLY
+        StreamEnabled: true
+        RetentionPeriodHours: 24
 
   HogeFunction:
     Type: AWS::Serverless::Function
@@ -37,7 +52,7 @@ Resources:
         import json
         def lambda_handler(event, context):
             print(json.dumps(event))
-            return
+            context.fail("retry")
       Role: !GetAtt LambdaRole.Arn
       MemorySize: 128
       Timeout: 30
