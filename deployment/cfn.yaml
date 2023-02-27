@@ -21,7 +21,7 @@ Resources:
       AttributeDefinitions:
         - AttributeName: Token
           AttributeType: S
-        - AttributeName: RunPath
+        - AttributeName: TaskStatus
           AttributeType: S
         - AttributeName: CreatedDate
           AttributeType: S
@@ -30,9 +30,9 @@ Resources:
         - AttributeName: Token
           KeyType: HASH
       GlobalSecondaryIndexes:
-        - IndexName: "RunPathCreatedDateIndex"
+        - IndexName: "TaskStatusCreatedDateIndex"
           KeySchema:
-            - AttributeName: "RunPath"
+            - AttributeName: "TaskStatus"
               KeyType: "HASH"
             - AttributeName: "CreatedDate"
               KeyType: "RANGE"
@@ -53,18 +53,34 @@ Resources:
       InlineCode: |
         import json
         def lambda_handler(event, context):
-            print(json.dumps(event))
-            context.fail("retry")
+            print(event)
+            raise Exception("retry")
       Role: !GetAtt LambdaRole.Arn
       MemorySize: 128
       Timeout: 30
-      Events:
-        Stream:
-          Type: DynamoDB
-          Properties:
-            Stream: !GetAtt DynamoDbTest.StreamArn
-            BatchSize: 100
-            StartingPosition: LATEST
+  # DeadLetterTopic:
+  #   Type: 'AWS::SNS::Topic'
+  #   Properties:
+  #     TopicName: my-dead-letter-topic
+
+  DeadLetterQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      QueueName: my-dead-letter-queue
+
+  HogeFunctionEventSourceMapping:
+    Type: "AWS::Lambda::EventSourceMapping"
+    Properties:
+      EventSourceArn: !GetAtt DynamoDbTest.StreamArn
+      FunctionName: !GetAtt HogeFunction.Arn
+      BatchSize: 100
+      StartingPosition: LATEST
+      MaximumRetryAttempts: 2
+      MaximumRecordAgeInSeconds: 300
+      BisectBatchOnFunctionError: true
+      DestinationConfig:
+        OnFailure:
+          Destination: !GetAtt DeadLetterQueue.Arn
 
   LambdaRole:
     Type: AWS::IAM::Role
@@ -90,6 +106,11 @@ Resources:
                   - dynamodb:GetRecords
                   - dynamodb:ListStreams
                   - dynamodb:DescribeStream
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sns:Publish
                 Resource: "*"
               - Effect: Allow
                 Action:
